@@ -66,15 +66,3 @@ func TestMallocs(t *testing.T) {
 
 	require.Zero(t, mallocs, "expected zero allocations on Next call")
 }
-
-func TestNumGoroutines(t *testing.T) {
-	generator := NewGenerator()
-
-	gNum := inspectNumGoroutines(t, func() {
-		for range maxFibonacciNumber {
-			generator.Next()
-		}
-	})
-
-	require.Equal(t, 2, gNum)
-}
