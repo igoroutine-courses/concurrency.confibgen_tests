@@ -50,6 +50,7 @@ linters-settings:
           - sync/atomic
           - errors
           - runtime
+          - math
 
 linters:
   disable-all: true

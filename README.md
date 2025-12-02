@@ -20,6 +20,7 @@ allow:
   - sync/atomic
   - errors
   - runtime
+  - math
 ```
 
 2. Вызов `Next` не должен делать аллокаций на куче
@@ -49,6 +50,7 @@ require.Zero(t, mallocs, "expected zero allocations on Next call")
 
 ## Особенности реализации
 * Используйте тесты и линтер, чтобы заполнить недосказанности, они проверяют все требования условия
+* [Таблица чисел Фибоначчи](https://tab.wikimassa.org/tablitsa_chisel_fibonachchi_200?i=1)
 
 ## Скрипты
 Для запуска скриптов на курсе необходимо установить [go-task](https://taskfile.dev/docs/installation)
