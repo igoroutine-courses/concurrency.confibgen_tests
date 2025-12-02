@@ -10,8 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: в ридми начало с 1
-
 func TestGoldenSequence(t *testing.T) {
 	t.Parallel()
 
@@ -115,4 +113,38 @@ func TestFibonacciInvariant(t *testing.T) {
 
 	slices.Sort(allValues)
 	require.True(t, isFibonacci(t, allValues), "expected fibonacci sequence")
+}
+
+func TestUnlockPanicOnOverflow(t *testing.T) {
+	t.Parallel()
+	generator := NewGenerator()
+
+	var prev uint64
+	for range maxFibonacciNumber + 1 {
+		cur := generator.Next()
+		require.LessOrEqual(t, prev, cur)
+
+		prev = cur
+	}
+
+	wg := new(sync.WaitGroup)
+	for range 100 {
+		wg.Go(func() {
+			func() {
+				defer func() {
+					err := recover()
+					require.NotNil(t, err, "expected panic on overflow")
+
+					vErr, ok := err.(error)
+					require.True(t, ok, "expected panic with error on overflow")
+
+					require.ErrorContains(t, vErr, "overflow", "expected verbose message on overflow")
+				}()
+
+				generator.Next()
+			}()
+		})
+	}
+
+	wg.Wait()
 }
