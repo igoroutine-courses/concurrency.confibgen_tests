@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-const maxFibonacciNumber = 92
+const maxFibonacciNumber = 93
 
 func isFibonacci(t *testing.T, seq []uint64) bool {
 	t.Helper()

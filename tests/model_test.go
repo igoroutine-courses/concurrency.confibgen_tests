@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: в ридми начало с 1
+
 func TestGoldenSequence(t *testing.T) {
 	t.Parallel()
 
@@ -42,13 +44,13 @@ func TestOverflow(t *testing.T) {
 func TestGolden(t *testing.T) {
 	t.Parallel()
 
-	// F_92 = 7540113804746346429
+	// F_93 = 7540113804746346429
 	const expected uint64 = 7540113804746346429
 
 	generator := NewGenerator()
 	var cur uint64
 
-	for range maxFibonacciNumber + 1 {
+	for range maxFibonacciNumber {
 		cur = generator.Next()
 	}
 
@@ -60,7 +62,7 @@ func TestPanicOnOverflow(t *testing.T) {
 	generator := NewGenerator()
 
 	var prev uint64
-	for range maxFibonacciNumber + 1 {
+	for range maxFibonacciNumber {
 		cur := generator.Next()
 		require.LessOrEqual(t, prev, cur)
 
@@ -121,7 +123,7 @@ func TestUnlockPanicOnOverflow(t *testing.T) {
 	generator := NewGenerator()
 
 	var prev uint64
-	for range maxFibonacciNumber + 1 {
+	for range maxFibonacciNumber {
 		cur := generator.Next()
 		require.LessOrEqual(t, prev, cur)
 
