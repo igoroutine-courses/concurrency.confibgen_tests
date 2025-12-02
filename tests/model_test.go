@@ -3,7 +3,12 @@
 package fibonacci
 
 import (
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"unsafe"
@@ -152,4 +157,133 @@ func TestUnlockPanicOnOverflow(t *testing.T) {
 
 func TestInternalSize(t *testing.T) {
 	require.LessOrEqual(t, unsafe.Sizeof(generatorImpl{}), unsafe.Sizeof(int64(0))*4)
+}
+
+func TestNoInitFunc(t *testing.T) {
+	t.Parallel()
+
+	filesToCheck := []string{
+		"./generator.go",
+	}
+
+	for _, relPath := range filesToCheck {
+		absPath, err := filepath.Abs(relPath)
+		require.NoError(t, err)
+
+		fset := token.NewFileSet()
+		node, err := parser.ParseFile(fset, absPath, nil, parser.AllErrors)
+		require.NoError(t, err)
+
+		for _, decl := range node.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok {
+				continue
+			}
+
+			if fn.Name != nil && fn.Name.Name == "init" && fn.Recv == nil {
+				require.Failf(t, "init used",
+					"File %s has init function at position %v",
+					relPath, fset.Position(fn.Pos()))
+			}
+		}
+	}
+}
+
+func TestNoGlobalVars(t *testing.T) {
+	t.Parallel()
+
+	filesToCheck := []string{
+		"./generator.go",
+	}
+
+	for _, relPath := range filesToCheck {
+		absPath, err := filepath.Abs(relPath)
+		require.NoError(t, err)
+
+		fset := token.NewFileSet()
+		node, err := parser.ParseFile(fset, absPath, nil, parser.AllErrors)
+		require.NoError(t, err)
+
+		for _, decl := range node.Decls {
+			gen, ok := decl.(*ast.GenDecl)
+			if !ok || gen.Tok != token.VAR {
+				continue
+			}
+
+			for _, spec := range gen.Specs {
+				vs, ok := spec.(*ast.ValueSpec)
+				if !ok {
+					continue
+				}
+
+				// var ErrX = errors.New("...")
+				if len(vs.Names) == 1 &&
+					strings.HasPrefix(vs.Names[0].Name, "Err") &&
+					len(vs.Values) == 1 {
+
+					// errors.New("...")
+					if call, ok := vs.Values[0].(*ast.CallExpr); ok {
+						if fun, ok := call.Fun.(*ast.SelectorExpr); ok {
+							if pkg, ok := fun.X.(*ast.Ident); ok &&
+								pkg.Name == "errors" &&
+								fun.Sel.Name == "New" {
+								continue // ok
+							}
+						}
+					}
+				}
+
+				// var _ Interface = (*Type)(nil)
+				if len(vs.Names) == 1 &&
+					vs.Names[0].Name == "_" &&
+					len(vs.Values) == 1 {
+
+					if call, ok := vs.Values[0].(*ast.CallExpr); ok {
+						// (*T)(nil)
+						if _, ok := call.Fun.(*ast.ParenExpr); ok {
+							continue // ok
+						}
+					}
+				}
+
+				require.Failf(t,
+					"global var used",
+					"Global variable in %s at %v",
+					relPath, fset.Position(gen.Pos()))
+			}
+		}
+	}
+}
+
+func TestNoSlicesArraysAndMaps(t *testing.T) {
+	t.Parallel()
+
+	filesToCheck := []string{
+		"./generator.go",
+	}
+
+	for _, relPath := range filesToCheck {
+		absPath, err := filepath.Abs(relPath)
+		require.NoError(t, err)
+
+		fset := token.NewFileSet()
+		node, err := parser.ParseFile(fset, absPath, nil, parser.AllErrors)
+		require.NoError(t, err)
+
+		ast.Inspect(node, func(n ast.Node) bool {
+			switch tt := n.(type) {
+			case *ast.ArrayType:
+				require.Failf(t, "array or slice used",
+					"File %s uses array/slice type at position %v",
+					relPath, fset.Position(tt.Pos()))
+
+			case *ast.MapType:
+				require.Failf(t, "map used",
+					"File %s uses map type at position %v",
+					relPath, fset.Position(tt.Pos()))
+			}
+
+			return true
+		})
+	}
 }
