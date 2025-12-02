@@ -6,6 +6,7 @@ import (
 	"slices"
 	"sync"
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/require"
 )
@@ -147,4 +148,8 @@ func TestUnlockPanicOnOverflow(t *testing.T) {
 	}
 
 	wg.Wait()
+}
+
+func TestInternalSize(t *testing.T) {
+	require.Equal(t, unsafe.Sizeof(int64(0))*3, unsafe.Sizeof(generatorImpl{}))
 }
