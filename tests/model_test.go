@@ -287,3 +287,46 @@ func TestNoSlicesArraysAndMaps(t *testing.T) {
 		})
 	}
 }
+
+func TestNoLocalVars(t *testing.T) {
+	filesToCheck := []string{
+		"./generator.go",
+	}
+
+	for _, relPath := range filesToCheck {
+		absPath, err := filepath.Abs(relPath)
+		require.NoError(t, err)
+
+		fset := token.NewFileSet()
+		node, err := parser.ParseFile(fset, absPath, nil, parser.AllErrors)
+		require.NoError(t, err)
+
+		for _, decl := range node.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil {
+				continue
+			}
+
+			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				switch stmt := n.(type) {
+				// x := 1, a, b := f(), k, v := range m
+				case *ast.AssignStmt:
+					if stmt.Tok == token.DEFINE {
+						require.Failf(t, "local var used",
+							"File %s: local variable declared with := at %v",
+							relPath, fset.Position(stmt.Pos()))
+					}
+
+				// var x int, var a, b = ...
+				case *ast.DeclStmt:
+					if gen, ok := stmt.Decl.(*ast.GenDecl); ok && gen.Tok == token.VAR {
+						require.Failf(t, "local var used",
+							"File %s: local variable declared with var at %v",
+							relPath, fset.Position(gen.Pos()))
+					}
+				}
+				return true
+			})
+		}
+	}
+}

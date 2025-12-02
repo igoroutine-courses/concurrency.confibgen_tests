@@ -43,6 +43,8 @@ require.Zero(t, mallocs, "expected zero allocations on Next call")
 
 5. При переполнении необходимо кидать панику с осмысленной ошибкой
 
+6. В этом задании запрещено создавать локальные переменные
+
 ## Сдача
 * Решение необходимо реализовать в файле [generator.go](./internal/fibgen/generator.go)
 * Открыть pull request из ветки `hw` в ветку `main` **вашего репозитория**
