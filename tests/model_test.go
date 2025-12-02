@@ -11,8 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TODO: в ридми начало с 1
-
 func TestGoldenSequence(t *testing.T) {
 	t.Parallel()
 
@@ -87,35 +85,37 @@ func TestPanicOnOverflow(t *testing.T) {
 func TestFibonacciInvariant(t *testing.T) {
 	t.Parallel()
 
-	workers := 10
-	generator := NewGenerator()
-	const iters = 9
+	for range 10000 {
+		workers := 10
+		generator := NewGenerator()
+		const iters = 9
 
-	wg := new(sync.WaitGroup)
-	workerValues := make([][]uint64, workers)
-	for workerID := range workers {
-		workerValues[workerID] = make([]uint64, 0, iters)
+		wg := new(sync.WaitGroup)
+		workerValues := make([][]uint64, workers)
+		for workerID := range workers {
+			workerValues[workerID] = make([]uint64, 0, iters)
+		}
+
+		for workerID := range workers {
+			wg.Go(func() {
+				for range iters {
+					value := generator.Next()
+					workerValues[workerID] = append(workerValues[workerID], value)
+				}
+			})
+		}
+
+		wg.Wait()
+
+		allValues := make([]uint64, 0, iters*workers)
+		for _, values := range workerValues {
+			require.Truef(t, slices.IsSorted(values), "expected increasing sequence of values, got: %v", values)
+			allValues = append(allValues, values...)
+		}
+
+		slices.Sort(allValues)
+		require.True(t, isFibonacci(t, allValues), "expected fibonacci sequence")
 	}
-
-	for workerID := range workers {
-		wg.Go(func() {
-			for range iters {
-				value := generator.Next()
-				workerValues[workerID] = append(workerValues[workerID], value)
-			}
-		})
-	}
-
-	wg.Wait()
-
-	allValues := make([]uint64, 0, iters*workers)
-	for _, values := range workerValues {
-		require.Truef(t, slices.IsSorted(values), "expected increasing sequence of values, got: %v", values)
-		allValues = append(allValues, values...)
-	}
-
-	slices.Sort(allValues)
-	require.True(t, isFibonacci(t, allValues), "expected fibonacci sequence")
 }
 
 func TestUnlockPanicOnOverflow(t *testing.T) {
