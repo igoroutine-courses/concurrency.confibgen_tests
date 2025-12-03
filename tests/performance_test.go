@@ -3,6 +3,8 @@
 package fibonacci
 
 import (
+	"runtime"
+	"runtime/debug"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -65,4 +67,46 @@ func TestMallocs(t *testing.T) {
 	})
 
 	require.Zero(t, mallocs, "expected zero allocations on Next call")
+}
+
+func TestMallocsWithOverflow(t *testing.T) {
+	debug.SetGCPercent(-1)
+	t.Cleanup(func() {
+		debug.SetGCPercent(100)
+	})
+
+	var result int
+	generator := NewGenerator()
+
+	for range maxFibonacciNumber {
+		runtime.GC()
+		var stats runtime.MemStats
+		runtime.ReadMemStats(&stats)
+		before := stats.Mallocs
+
+		generator.Next()
+
+		runtime.ReadMemStats(&stats)
+		after := stats.Mallocs
+
+		result = max(result, int(after-before))
+	}
+
+	var stats runtime.MemStats
+	runtime.ReadMemStats(&stats)
+	before := stats.Mallocs
+
+	defer func() {
+		if err := recover(); err == nil {
+			t.Fail()
+		}
+
+		runtime.ReadMemStats(&stats)
+		after := stats.Mallocs
+
+		result = max(result, int(after-before))
+		require.Zero(t, result, "expected zero allocations on Next call")
+	}()
+
+	generator.Next()
 }
